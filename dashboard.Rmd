@@ -1,0 +1,180 @@
+title: "Online Retail Sales Dashboard"
+author: "Mohamed Alneel"
+date: "`r Sys.Date()`"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: 
+      version: 4
+      bootswatch: cosmo
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(scales)
+library(DT)
+library(janitor)
+library(lubridate)
+library(readxl)
+
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+# Load and clean the data inside the dashboard
+retail_raw <- read_excel("Online Retail.xlsx")
+
+retail_clean <- retail_raw %>%
+  clean_names() %>%
+  filter(
+    !str_starts(invoice_no, "C"),
+    quantity > 0,
+    unit_price > 0,
+    !is.na(customer_id)
+  ) %>%
+  mutate(
+    total_price   = quantity * unit_price,
+    invoice_date  = as.Date(invoice_date),
+    year_month    = format(invoice_date, "%Y-%m"),
+    month         = month(invoice_date, label = TRUE),
+    day_of_week   = wday(invoice_date, label = TRUE)
+  )
+
+# Calculations for plots and metrics
+total_revenue   <- sum(retail_clean$total_price)
+total_orders    <- n_distinct(retail_clean$invoice_no)
+total_customers <- n_distinct(retail_clean$customer_id)
+
+top_products <- retail_clean %>%
+  group_by(stock_code, description) %>%
+  summarise(total_revenue = sum(total_price)) %>%
+  arrange(desc(total_revenue)) %>%
+  head(10)
+
+monthly_sales <- retail_clean %>%
+  group_by(year_month, month) %>%
+  summarise(total_revenue = sum(total_price)) %>%
+  arrange(year_month)
+
+sales_by_country <- retail_clean %>%
+  group_by(country) %>%
+  summarise(total_revenue = sum(total_price)) %>%
+  arrange(desc(total_revenue)) %>%
+  head(10)
+
+sales_by_day <- retail_clean %>%
+  group_by(day_of_week) %>%
+  summarise(total_revenue = sum(total_price)) %>%
+  mutate(day_of_week = factor(day_of_week, levels = c("Mon", "Tue", "Wed",      "Thu", "Fri", "Sat", "Sun")))
+
+rfm <- retail_clean %>%
+  group_by(customer_id) %>%
+  summarise(
+    recency_days = as.numeric(max(invoice_date) - min(invoice_date)),
+    frequency    = n_distinct(invoice_no),
+    monetary     = sum(total_price)
+  ) %>%
+  arrange(desc(monetary)) %>%
+  head(10)
+
+```
+
+###Overview {data-orientation=rows}
+Key Metrics
+
+```{r}
+valueBox(
+  value = format(round(sum(retail_clean$total_price), 0), big.mark = ","),
+  icon = "fa-money-bill-wave",
+  caption = "Total Revenue (GBP)",
+  color = "primary"
+)
+
+valueBox(
+  value = format(n_distinct(retail_clean$invoice_no), big.mark = ","),
+  icon = "fa-shopping-cart",
+  caption = "Total Orders",
+  color = "success"
+)
+
+valueBox(
+  value = format(n_distinct(retail_clean$customer_id), big.mark = ","),
+  icon = "fa-users",
+  caption = "Unique Customers",
+  color = "info"
+)
+```
+
+### Top 10 Products by Revenue
+
+```{r}
+ggplot(top_products, aes(x = reorder(description, total_revenue), y = total_revenue)) +
+  geom_bar(stat = "identity", fill = "#1f77b4") +
+  coord_flip() +
+  labs(title = "Top 10 Products", x = NULL, y = "Revenue (GBP)") +
+  scale_y_continuous(labels = comma) +
+  theme_minimal()
+```
+
+### Monthly Sales Trend
+
+```{r}
+ggplot(monthly_sales, aes(x = year_month, y = total_revenue, group = 1)) +
+  geom_line(color = "#2ca02c", linewidth = 1.2) +
+  geom_point(color = "#2ca02c", size = 3) +
+  labs(title = "Monthly Sales", x = "Year-Month", y = "Revenue (GBP)") +
+  scale_y_continuous(labels = comma) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Top 10 Countries
+
+```{r}
+ggplot(sales_by_country, aes(x = reorder(country, total_revenue), y = total_revenue)) +
+  geom_bar(stat = "identity", fill = "#d62728") +
+  coord_flip() +
+  labs(title = "Top 10 Countries", x = NULL, y = "Revenue (GBP)") +
+  scale_y_continuous(labels = comma) +
+  theme_minimal()
+```
+
+### Sales by Day of Week
+
+```{r}
+sales_by_day <- retail_clean %>%
+  group_by(day_of_week) %>%
+  summarise(total_revenue = sum(total_price)) %>%
+  mutate(day_of_week = factor(day_of_week, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
+
+ggplot(sales_by_day, aes(x = day_of_week, y = total_revenue, fill = day_of_week)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Sales by Day of Week", x = NULL, y = "Revenue (GBP)") +
+  scale_y_continuous(labels = comma) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+### Top 10 Customers (RFM - Monetary)
+
+```{r}
+datatable(
+  rfm %>% head(10),
+  options = list(pageLength = 10, searching = FALSE),
+  caption = "Top 10 Customers by Total Spending"
+)
+```
+
+### Frequency vs Monetary Scatter
+
+```{r}
+ggplot(rfm, aes(x = frequency, y = monetary)) +
+  geom_point(alpha = 0.6, color = "#1f77b4", size = 3) +
+  geom_smooth(method = "lm", color = "red", se = FALSE, linetype = "dashed") +
+  labs(title = "Frequency vs Monetary", x = "Number of Orders", y = "Total Spending (GBP)") +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  theme_minimal()
+```
