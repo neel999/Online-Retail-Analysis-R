@@ -17,7 +17,7 @@
 - موسمية واضحة (ارتفاع في نوفمبر-ديسمبر)
 
 ## الداشبورد :
-[افتح الداشبورد هنا](https://github.com/neel999/Online-Retail-Analysis-R/blob/main/dashboard.html)
+[افتح الداشبورد هنا](https://github.com/neel999/Online-Retail-Analysis-R/blob/main/Online-Retail-dashboard.html)
 ## الأدوات المستخدمة:
 - R + tidyverse (dplyr, tidyr, ggplot2)
 - janitor, lubridate, scales, flexdashboard, DT
