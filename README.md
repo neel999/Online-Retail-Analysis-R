@@ -16,9 +16,8 @@
 - أعلى مبيعات في المملكة المتحدة (بفارق كبير)
 - موسمية واضحة (ارتفاع في نوفمبر-ديسمبر)
 
-## الداشبورد:
-[https://github.com/neel999/Online-Retail-Analysis-R/blob/main/dashboard.html]
-
+## الداشبورد :
+[افتح الداشبورد هنا](https://github.com/neel999/Online-Retail-Analysis-R/blob/main/dashboard.html)
 ## الأدوات المستخدمة:
 - R + tidyverse (dplyr, tidyr, ggplot2)
 - janitor, lubridate, scales, flexdashboard, DT
